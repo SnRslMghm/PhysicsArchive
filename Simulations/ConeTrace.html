@@ -1,0 +1,1384 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Conic Solar Concentrator Simulator</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ─── Reset & tokens ──────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --clr-accent: #b69985;
+        --clr-accent-deep: #744943;
+        --clr-secondary: #d5d5d5;
+        --clr-text: #fffffd;
+        --bg-gradient: linear-gradient(
+          135deg,
+          #000000 0%,
+          #363435 45%,
+          #734940 100%
+        );
+
+        --sidebar-width: clamp(280px, 38vw, 460px);
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --dur: 0.25s;
+      }
+
+      /* ─── Layout ──────────────────────────────────────────────────── */
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          sans-serif;
+        background: var(--bg-gradient);
+        color: var(--clr-text);
+        height: 100dvh; /* dvh handles mobile browser chrome correctly */
+        width: 100vw;
+        overflow: hidden;
+        display: flex;
+        flex-direction: row;
+      }
+
+      #sidebar {
+        width: var(--sidebar-width);
+        background: rgba(255, 255, 253, 0.01);
+        backdrop-filter: blur(24px) saturate(1.2);
+        -webkit-backdrop-filter: blur(24px) saturate(1.2);
+        border-right: 1px solid rgba(255, 255, 253, 0.08);
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        overflow: hidden;
+        box-shadow: 0 0 60px rgba(0, 0, 0, 0.3);
+        transition:
+          width 0.3s ease,
+          padding 0.3s ease,
+          border 0.3s ease;
+        z-index: 100;
+        /* Padding kept on the inner child so it doesn't collapse on hide */
+      }
+
+      /* Sidebar hidden: collapse width, not translate, on desktop */
+      .sidebar-hidden #sidebar {
+        width: 0;
+        border: none;
+        overflow: hidden;
+      }
+
+      /* Inner container carries the padding so width-collapse is clean */
+      .sidebar-inner {
+        width: var(--sidebar-width);
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        padding: clamp(12px, 2vh, 20px) clamp(12px, 2vw, 20px) 0;
+        overflow: hidden;
+      }
+
+      #viewport {
+        flex: 1;
+        height: 100dvh;
+        position: relative;
+        cursor: grab;
+        min-width: 0;
+        z-index: 1;
+      }
+      #viewport:active {
+        cursor: grabbing;
+      }
+      #viewport canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      /* ─── Sidebar heading ─────────────────────────────────────────── */
+      .app-title {
+        font-size: clamp(15px, 2.2vw, 20px);
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        text-align: center;
+        padding-bottom: clamp(8px, 1.5vh, 12px);
+        border-bottom: 1px solid rgba(255, 255, 253, 0.06);
+        margin-bottom: clamp(8px, 1.5vh, 14px);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: linear-gradient(
+          135deg,
+          #fffffd 0%,
+          #d5d5d5 50%,
+          #b69985 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .app-title .icon {
+        -webkit-text-fill-color: initial;
+        color: var(--clr-accent);
+        font-size: clamp(16px, 2.4vw, 22px);
+      }
+      .app-title .sub {
+        font-size: clamp(8px, 0.9vw, 10px);
+        font-weight: 400;
+        -webkit-text-fill-color: rgba(255, 255, 253, 0.4);
+        letter-spacing: 0.3px;
+      }
+
+      /* ─── Scrollable panel area ───────────────────────────────────── */
+      .sidebar-scroll {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(6px, 1.5vh, 12px);
+        padding-right: 4px;
+        min-height: 0; /* critical: allows flex child to shrink */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 253, 0.15) transparent;
+      }
+      .sidebar-scroll::-webkit-scrollbar {
+        width: 3px;
+      }
+      .sidebar-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .sidebar-scroll::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 253, 0.15);
+        border-radius: 3px;
+      }
+
+      /* ─── Export footer ───────────────────────────────────────────── */
+      .export-footer {
+        flex-shrink: 0;
+        display: flex;
+        gap: clamp(6px, 1vw, 10px);
+        padding: clamp(8px, 1.5vh, 12px) 0 clamp(12px, 2vh, 16px);
+        /* Safe area for notched phones */
+        padding-bottom: max(
+          clamp(12px, 2vh, 16px),
+          env(safe-area-inset-bottom, 0px)
+        );
+      }
+
+      /* ─── Panel cards ─────────────────────────────────────────────── */
+      .panel {
+        background: rgba(255, 255, 253, 0.05);
+        backdrop-filter: blur(16px) saturate(1.1);
+        -webkit-backdrop-filter: blur(16px) saturate(1.1);
+        border: 1px solid rgba(255, 255, 253, 0.08);
+        border-radius: clamp(10px, 1.2vw, 14px);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition:
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          background var(--dur) var(--ease);
+      }
+      .panel:hover {
+        border-color: rgba(255, 255, 253, 0.18);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        background: rgba(255, 255, 253, 0.08);
+      }
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: clamp(6px, 0.9vh, 10px) clamp(10px, 1.8vw, 16px);
+        background: rgba(255, 255, 253, 0.04);
+        border-bottom: 1px solid rgba(255, 255, 253, 0.06);
+      }
+      .panel-title {
+        font-size: clamp(8px, 0.85vw, 10px);
+        font-weight: 600;
+        color: var(--clr-secondary);
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        opacity: 0.8;
+      }
+
+      .panel-body {
+        padding: clamp(8px, 1.4vh, 14px) clamp(10px, 1.8vw, 16px);
+        display: flex;
+        flex-direction: column;
+        gap: clamp(8px, 1.2vh, 12px);
+      }
+
+      /* ─── Parameter grid ──────────────────────────────────────────── */
+      .param-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+        gap: clamp(4px, 0.8vh, 8px) clamp(6px, 1.2vw, 12px);
+      }
+
+      .param-item {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .param-item label {
+        font-size: clamp(7px, 0.8vw, 9px);
+        color: var(--clr-secondary);
+        letter-spacing: 0.4px;
+        font-weight: 600;
+        opacity: 0.6;
+        /* No uppercase: preserves meaning of symbols like φ */
+      }
+      .param-item input[type="number"] {
+        background: rgba(255, 255, 253, 0.06);
+        border: 1px solid rgba(255, 255, 253, 0.08);
+        border-radius: 8px;
+        padding: clamp(4px, 0.7vh, 6px) clamp(6px, 0.9vw, 10px);
+        color: var(--clr-text);
+        font-size: clamp(11px, 1.1vw, 13px);
+        font-weight: 500;
+        width: 100%;
+        font-family: inherit;
+        transition:
+          border-color var(--dur) var(--ease),
+          background var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
+        /* Suppress spinners */
+        -moz-appearance: textfield;
+      }
+      .param-item input[type="number"]::-webkit-inner-spin-button,
+      .param-item input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+      }
+      .param-item input[type="number"]:hover {
+        border-color: rgba(255, 255, 253, 0.2);
+        background: rgba(255, 255, 253, 0.08);
+      }
+      .param-item input[type="number"]:focus {
+        outline: none;
+        border-color: var(--clr-accent);
+        box-shadow: 0 0 0 3px rgba(116, 73, 67, 0.2);
+        background: rgba(255, 255, 253, 0.1);
+      }
+
+      /* ─── Stats grid ──────────────────────────────────────────────── */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px clamp(8px, 1.4vw, 16px);
+      }
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+      }
+      .stat-item.span-2 {
+        grid-column: span 2;
+      }
+      .stat-label {
+        font-size: clamp(6px, 0.75vw, 8px);
+        color: var(--clr-secondary);
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        font-weight: 600;
+        opacity: 0.5;
+      }
+      .stat-value {
+        font-size: clamp(14px, 1.8vw, 18px);
+        font-weight: 700;
+        line-height: 1.3;
+        background: linear-gradient(135deg, #fffffd 0%, #d5d5d5 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      /* Plain variant: no gradient clip (used for decimal values) */
+      .stat-value-plain {
+        font-size: clamp(14px, 1.8vw, 18px);
+        font-weight: 700;
+        color: var(--clr-text);
+        line-height: 1.3;
+      }
+
+      /* ─── Toggle switch ───────────────────────────────────────────── */
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: clamp(6px, 1.2vw, 12px);
+      }
+      .toggle {
+        position: relative;
+        width: clamp(36px, 4.5vw, 42px);
+        height: clamp(20px, 2.4vw, 23px);
+        flex-shrink: 0;
+        cursor: pointer;
+        display: inline-block;
+      }
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+      .toggle-track {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 253, 0.12);
+        border: 1px solid rgba(255, 255, 253, 0.15);
+        border-radius: 34px;
+        transition:
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease);
+      }
+      .toggle-thumb {
+        position: absolute;
+        height: calc(100% - 6px);
+        width: calc(50% - 4px);
+        left: 3px;
+        top: 3px;
+        background: var(--clr-secondary);
+        border-radius: 50%;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        transition:
+          left var(--dur) var(--ease),
+          background var(--dur) var(--ease);
+      }
+      .toggle input:checked ~ .toggle-track {
+        background: var(--clr-accent);
+        border-color: var(--clr-accent);
+      }
+      .toggle input:checked ~ .toggle-thumb {
+        left: calc(50% + 1px);
+        background: var(--clr-text);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      }
+      .toggle-label {
+        font-size: clamp(9px, 1vw, 11px);
+        font-weight: 500;
+        color: var(--clr-secondary);
+        cursor: pointer;
+        user-select: none;
+        opacity: 0.8;
+      }
+
+      /* ─── Buttons ─────────────────────────────────────────────────── */
+      .btn {
+        background: rgba(255, 255, 253, 0.06);
+        border: 1px solid rgba(255, 255, 253, 0.08);
+        border-radius: 8px;
+        padding: clamp(5px, 0.9vh, 8px) clamp(8px, 1.4vw, 14px);
+        color: var(--clr-secondary);
+        font-weight: 500;
+        font-size: clamp(10px, 1.1vw, 12px);
+        cursor: pointer;
+        flex: 1;
+        text-align: center;
+        font-family: inherit;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          color var(--dur) var(--ease),
+          transform var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
+      }
+      .btn:hover {
+        background: rgba(255, 255, 253, 0.12);
+        border-color: rgba(255, 255, 253, 0.2);
+        color: var(--clr-text);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      /* ─── Sidebar toggle button (FAB) ─────────────────────────────── */
+      #btn-toggle-sidebar {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 200;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 253, 0.25);
+        color: var(--clr-text);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 20px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+        line-height: 1;
+        user-select: none;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          transform var(--dur) var(--ease);
+      }
+      #btn-toggle-sidebar:hover {
+        background: rgba(0, 0, 0, 0.85);
+        border-color: var(--clr-accent);
+        transform: scale(1.08);
+      }
+
+      /* ─── Mobile layout ────────────────────────────────────────────── */
+      @media (max-width: 750px) {
+        #sidebar {
+          position: fixed;
+          inset: 0;
+          width: 100vw !important;
+          height: 100dvh;
+          border-right: none;
+          transform: translateX(0);
+          transition: transform 0.3s ease;
+          /* Override width transition — use translate on mobile */
+        }
+        .sidebar-hidden #sidebar {
+          transform: translateX(-100%);
+          /* Width stays 100vw so inner layout isn't disrupted */
+          width: 100vw !important;
+          pointer-events: none;
+          border: none;
+        }
+        .sidebar-inner {
+          width: 100vw;
+        }
+        #viewport {
+          position: fixed;
+          inset: 0;
+          width: 100vw;
+          height: 100dvh;
+          flex: unset;
+        }
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        /* Let span-2 collapse naturally in 2-column grid */
+        .stat-item.span-2 {
+          grid-column: auto;
+        }
+        .param-grid {
+          grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+    <aside id="sidebar" aria-label="Simulation controls">
+      <div class="sidebar-inner">
+        <h1 class="app-title">
+          <span class="icon" aria-hidden="true">✦</span>
+          Conic Solar Concentrator
+          <span class="sub">Simulator</span>
+        </h1>
+
+        <div class="sidebar-scroll">
+          <!-- Cone geometry -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Cone geometry</span>
+            </div>
+            <div class="panel-body">
+              <div class="param-grid">
+                <div class="param-item">
+                  <label for="input-alpha">Half-angle (°)</label>
+                  <input
+                    type="number"
+                    id="input-alpha"
+                    value="25"
+                    min="1"
+                    max="89"
+                    step="0.5"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-height">Height</label>
+                  <input
+                    type="number"
+                    id="input-height"
+                    value="4.0"
+                    min="0.5"
+                    max="10"
+                    step="0.1"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-radius">Radius</label>
+                  <input
+                    type="number"
+                    id="input-radius"
+                    value="1.86"
+                    min="0.1"
+                    max="8"
+                    step="0.05"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Source position -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Source position</span>
+            </div>
+            <div class="panel-body">
+              <div class="param-grid">
+                <div class="param-item">
+                  <label for="input-source-r">r</label>
+                  <input
+                    type="number"
+                    id="input-source-r"
+                    value="0.0"
+                    min="0.0"
+                    max="5"
+                    step="0.05"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-source-phi">φ (°)</label>
+                  <input
+                    type="number"
+                    id="input-source-phi"
+                    value="0"
+                    min="-180"
+                    max="180"
+                    step="1"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-source-z">z</label>
+                  <input
+                    type="number"
+                    id="input-source-z"
+                    value="2.5"
+                    min="0.1"
+                    max="8"
+                    step="0.1"
+                  />
+                </div>
+              </div>
+              <div class="toggle-row">
+                <label class="toggle" for="input-isotropic">
+                  <input type="checkbox" id="input-isotropic" />
+                  <span class="toggle-track" aria-hidden="true"></span>
+                  <span class="toggle-thumb" aria-hidden="true"></span>
+                </label>
+                <label class="toggle-label" for="input-isotropic"
+                  >Isotropic emission</label
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Beam properties -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Beam properties</span>
+            </div>
+            <div class="panel-body">
+              <div class="param-grid">
+                <div class="param-item">
+                  <label for="input-divergence">Divergence (°)</label>
+                  <input
+                    type="number"
+                    id="input-divergence"
+                    value="4"
+                    min="0.5"
+                    max="30"
+                    step="0.5"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-diameter">Diameter</label>
+                  <input
+                    type="number"
+                    id="input-diameter"
+                    value="0.3"
+                    min="0.05"
+                    max="1.5"
+                    step="0.05"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-rays">Rays</label>
+                  <input
+                    type="number"
+                    id="input-rays"
+                    value="200"
+                    min="20"
+                    max="800"
+                    step="10"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-max-bounces">Max bounces</label>
+                  <input
+                    type="number"
+                    id="input-max-bounces"
+                    value="12"
+                    min="1"
+                    max="30"
+                    step="1"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Statistics -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Simulation statistics</span>
+            </div>
+            <div class="panel-body">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <span class="stat-label">Total rays</span>
+                  <span class="stat-value" id="stat-total">0</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Escaped</span>
+                  <span class="stat-value" id="stat-escaped">0</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Trapped</span>
+                  <span class="stat-value" id="stat-trapped">0</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Avg bounces</span>
+                  <span class="stat-value-plain" id="stat-avg-bounces"
+                    >0.00</span
+                  >
+                </div>
+                <div class="stat-item span-2">
+                  <span class="stat-label">Max bounces</span>
+                  <span class="stat-value-plain" id="stat-max-bounces">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /.sidebar-scroll -->
+
+        <!-- Export controls — always visible at bottom of sidebar -->
+        <div class="export-footer">
+          <button class="btn" id="btn-export-png">PNG</button>
+          <button class="btn" id="btn-export-jpg">JPG</button>
+          <button class="btn" id="btn-export-json">JSON</button>
+        </div>
+      </div>
+      <!-- /.sidebar-inner -->
+    </aside>
+
+    <!-- ── Toggle FAB ──────────────────────────────────────────────── -->
+    <button
+      id="btn-toggle-sidebar"
+      title="Toggle sidebar"
+      aria-label="Toggle sidebar"
+    >
+      ✕
+    </button>
+
+    <!-- ── 3-D viewport ────────────────────────────────────────────── -->
+    <div id="viewport" aria-hidden="true"></div>
+
+    <!-- ── Three.js import map ────────────────────────────────────── -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      // ─── DOM references ───────────────────────────────────────────
+      const el = (id) => document.getElementById(id);
+
+      const inputs = {
+        alpha: el("input-alpha"),
+        height: el("input-height"),
+        radius: el("input-radius"),
+        sourceR: el("input-source-r"),
+        sourcePhi: el("input-source-phi"),
+        sourceZ: el("input-source-z"),
+        isotropic: el("input-isotropic"),
+        divergence: el("input-divergence"),
+        diameter: el("input-diameter"),
+        rays: el("input-rays"),
+        maxBounces: el("input-max-bounces"),
+      };
+
+      const stats = {
+        total: el("stat-total"),
+        escaped: el("stat-escaped"),
+        trapped: el("stat-trapped"),
+        avgBounces: el("stat-avg-bounces"),
+        maxBounces: el("stat-max-bounces"),
+      };
+
+      // ─── Sidebar toggle ───────────────────────────────────────────
+      const btnToggle = el("btn-toggle-sidebar");
+
+      function setSidebarVisible(visible) {
+        document.body.classList.toggle("sidebar-hidden", !visible);
+        btnToggle.textContent = visible ? "✕" : "☰";
+        btnToggle.setAttribute(
+          "aria-label",
+          visible ? "Hide sidebar" : "Show sidebar",
+        );
+        // Give CSS transition time to finish before recalculating viewport
+        setTimeout(() => window.dispatchEvent(new Event("resize")), 320);
+      }
+
+      btnToggle.addEventListener("click", () => {
+        setSidebarVisible(document.body.classList.contains("sidebar-hidden"));
+      });
+
+      setSidebarVisible(true); // initial state
+
+      // ─── Three.js scene setup ─────────────────────────────────────
+      const viewport = el("viewport");
+
+      const scene = new THREE.Scene();
+      scene.background = null;
+
+      const camera = new THREE.PerspectiveCamera(
+        35,
+        viewport.clientWidth / viewport.clientHeight,
+        0.1,
+        100,
+      );
+      camera.position.set(5, 1, 7);
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true, // required for PNG/JPG export
+        alpha: true,
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x000000, 0);
+      viewport.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 0, 1.5);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.1;
+      controls.rotateSpeed = 0.8;
+      controls.zoomSpeed = 1.2;
+      controls.panSpeed = 0.5;
+      controls.update();
+
+      // Lighting
+      scene.add(new THREE.AmbientLight(0x744943, 0.4));
+      const dirLight = new THREE.DirectionalLight(0xfffffd, 0.8);
+      dirLight.position.set(2, 8, 6);
+      scene.add(dirLight);
+      const fillLight = new THREE.DirectionalLight(0xb69985, 0.5);
+      fillLight.position.set(-4, 2, -3);
+      scene.add(fillLight);
+      const backLight = new THREE.DirectionalLight(0xd5d5d5, 0.2);
+      backLight.position.set(0, -2, -5);
+      scene.add(backLight);
+
+      // ─── Scene object handles ─────────────────────────────────────
+      // Grouping handles makes disposal loops simpler
+      const coneGroup = new THREE.Group();
+      const rayGroup = new THREE.Group();
+      scene.add(coneGroup, rayGroup);
+
+      let sourceMarker = null;
+
+      // ─── Geometry helpers ─────────────────────────────────────────
+
+      /**
+       * Dispose an object's geometry and material (or material array).
+       * Safe to call on null/undefined.
+       */
+      function disposeObject(obj) {
+        if (!obj) return;
+        obj.geometry?.dispose();
+        if (Array.isArray(obj.material))
+          obj.material.forEach((m) => m.dispose());
+        else obj.material?.dispose();
+      }
+
+      /** Remove all children from a Group and dispose their resources. */
+      function clearGroup(group) {
+        for (const child of group.children) disposeObject(child);
+        group.clear();
+      }
+
+      // ─── Cone geometry ────────────────────────────────────────────
+
+      /**
+       * Build (or rebuild) the cone mesh, wireframe overlay, and aperture ring.
+       * The cone's axis aligns with +Z; apex at origin, aperture at z = height.
+       */
+      function buildCone(halfAngleDeg, height, radius) {
+        clearGroup(coneGroup);
+
+        // Transparent shell
+        const shellGeo = new THREE.CylinderGeometry(
+          0,
+          radius,
+          height,
+          48,
+          1,
+          true,
+        );
+        const shellMat = new THREE.MeshPhongMaterial({
+          color: 0xb69985,
+          transparent: true,
+          opacity: 0.08,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          shininess: 60,
+          emissive: 0x744943,
+          emissiveIntensity: 0.05,
+        });
+        const shellMesh = new THREE.Mesh(shellGeo, shellMat);
+        shellMesh.rotation.x = -Math.PI / 2;
+        shellMesh.position.z = height / 2;
+
+        // Wireframe overlay (finer segment count for clarity)
+        const wireGeo = new THREE.EdgesGeometry(
+          new THREE.CylinderGeometry(0, radius, height, 32, 6, true),
+        );
+        const wireMat = new THREE.LineBasicMaterial({
+          color: 0xd5d5d5,
+          transparent: true,
+          opacity: 0.1,
+        });
+        const wireLines = new THREE.LineSegments(wireGeo, wireMat);
+        wireLines.rotation.x = -Math.PI / 2;
+        wireLines.position.z = height / 2;
+        // Dispose the temp geometry used only to build edges
+        new THREE.CylinderGeometry(0, radius, height, 32, 6, true).dispose?.();
+
+        // Aperture circle at z = height
+        const ringPts = Array.from({ length: 49 }, (_, i) => {
+          const t = (i / 48) * Math.PI * 2;
+          return new THREE.Vector3(
+            radius * Math.cos(t),
+            radius * Math.sin(t),
+            height,
+          );
+        });
+        const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+        const ringMat = new THREE.LineBasicMaterial({
+          color: 0xfffffd,
+          transparent: true,
+          opacity: 0.2,
+        });
+        const ring = new THREE.Line(ringGeo, ringMat);
+
+        coneGroup.add(shellMesh, wireLines, ring);
+      }
+
+      // ─── Source marker ────────────────────────────────────────────
+
+      function updateSourceMarker(position) {
+        if (sourceMarker) {
+          scene.remove(sourceMarker);
+          disposeObject(sourceMarker);
+        }
+        sourceMarker = new THREE.Mesh(
+          new THREE.SphereGeometry(0.15, 20, 20),
+          new THREE.MeshPhongMaterial({
+            color: 0xb69985,
+            emissive: 0x744943,
+            emissiveIntensity: 0.8,
+          }),
+        );
+        sourceMarker.position.copy(position);
+        scene.add(sourceMarker);
+      }
+
+      // ─── Angle ↔ Radius sync ──────────────────────────────────────
+
+      function syncRadiusFromAngle() {
+        const H = parseFloat(inputs.height.value) || 4;
+        const alpha = parseFloat(inputs.alpha.value) || 25;
+        inputs.radius.value = (H * Math.tan((alpha * Math.PI) / 180)).toFixed(
+          2,
+        );
+      }
+
+      function syncAngleFromRadius() {
+        const H = parseFloat(inputs.height.value) || 4;
+        const R = parseFloat(inputs.radius.value) || 0.1;
+        if (H > 0 && R > 0) {
+          const deg = (Math.atan(R / H) * 180) / Math.PI;
+          if (deg > 0 && deg < 90) inputs.alpha.value = deg.toFixed(1);
+        }
+      }
+
+      // ─── Ray tracing ──────────────────────────────────────────────
+
+      /**
+       * Sample a random direction for a collimated beam pointing in -Z.
+       * Uses a uniform-disk sample of angular radius `halfAngleRad` so the
+       * beam divergence is physically correct (fixes original abs(u) bias).
+       */
+      function sampleBeamDirection(halfAngleRad) {
+        const theta = Math.random() * 2 * Math.PI;
+        const r = Math.sqrt(Math.random()) * halfAngleRad; // uniform on disk
+        return new THREE.Vector3(
+          Math.sin(theta) * r,
+          Math.cos(theta) * r,
+          -1,
+        ).normalize();
+      }
+
+      /** Sample a fully isotropic direction. */
+      function sampleIsotropicDirection() {
+        const cosTheta = 2 * Math.random() - 1;
+        const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
+        const phi = Math.random() * 2 * Math.PI;
+        return new THREE.Vector3(
+          sinTheta * Math.cos(phi),
+          sinTheta * Math.sin(phi),
+          cosTheta,
+        );
+      }
+
+      /**
+       * Sample a ray origin near `center`.
+       * Isotropic mode uses a small sphere jitter; beam mode uses a disk.
+       */
+      function sampleOrigin(center, beamRadius, isotropic) {
+        const t = Math.random() * 2 * Math.PI;
+        if (isotropic) {
+          const r = Math.random() * 0.05;
+          return center
+            .clone()
+            .add(
+              new THREE.Vector3(
+                Math.cos(t) * r,
+                Math.sin(t) * r,
+                (Math.random() * 2 - 1) * 0.05,
+              ),
+            );
+        }
+        const r = Math.random() * beamRadius;
+        return center
+          .clone()
+          .add(new THREE.Vector3(Math.cos(t) * r, Math.sin(t) * r, 0));
+      }
+
+      /**
+       * Check whether a ray starting at `pos` with direction `dir` exits
+       * through the aperture (z = height) or terminates at the apex (z = 0).
+       *
+       * Returns { point, fate: "escaped" | "trapped" } or null if neither
+       * intersection is valid. Does NOT mutate any external arrays.
+       */
+      function checkApertureAndApex(pos, dir, height, radius) {
+        if (dir.z > 1e-9) {
+          const t = (height - pos.z) / dir.z;
+          if (t > 1e-8) {
+            const hit = pos.clone().addScaledVector(dir, t);
+            if (hit.x * hit.x + hit.y * hit.y <= radius * radius + 1e-6) {
+              return { point: hit, fate: "escaped" };
+            }
+          }
+        }
+        if (dir.z < -1e-9) {
+          const t = -pos.z / dir.z;
+          if (t > 1e-8) {
+            const hit = pos.clone().addScaledVector(dir, t);
+            if (hit.x * hit.x + hit.y * hit.y < 1e-6) {
+              return { point: hit, fate: "trapped" };
+            }
+          }
+        }
+        return null;
+      }
+
+      /**
+       * Trace a single ray and return its path segments and fate.
+       *
+       * @returns {{ segments: Array<{start, end}>, bounces: number, fate: "escaped"|"trapped" }}
+       */
+      function traceRay(origin, dir, height, radius, slopeRatio, maxBounces) {
+        const slopeSq = slopeRatio * slopeRatio;
+        const segments = [];
+        let pos = origin.clone();
+        let rayDir = dir.clone();
+        let bounces = 0;
+        let fate = null;
+
+        for (let b = 0; b < maxBounces; b++) {
+          // Intersect with the cone surface: |xy|² = slopeRatio² * z²
+          const A =
+            rayDir.x * rayDir.x +
+            rayDir.y * rayDir.y -
+            slopeSq * rayDir.z * rayDir.z;
+          const Bv =
+            2 *
+            (pos.x * rayDir.x + pos.y * rayDir.y - slopeSq * pos.z * rayDir.z);
+          const C = pos.x * pos.x + pos.y * pos.y - slopeSq * pos.z * pos.z;
+
+          let tCone = null;
+
+          if (Math.abs(A) < 1e-12) {
+            if (Math.abs(Bv) > 1e-12) tCone = -C / Bv;
+          } else {
+            const disc = Bv * Bv - 4 * A * C;
+            if (disc >= 0) {
+              const sq = Math.sqrt(disc);
+              for (const t of [(-Bv - sq) / (2 * A), (-Bv + sq) / (2 * A)]) {
+                if (t > 1e-8) {
+                  const hz = pos.z + t * rayDir.z;
+                  if (hz > 0 && hz < height) {
+                    tCone = t;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          // No cone wall hit — check aperture / apex
+          if (tCone === null) {
+            const terminal = checkApertureAndApex(pos, rayDir, height, radius);
+            if (terminal) {
+              segments.push({ start: pos.clone(), end: terminal.point });
+              fate = terminal.fate;
+            }
+            break;
+          }
+
+          const hitPt = pos.clone().addScaledVector(rayDir, tCone);
+
+          // Validate hit is inside cone bounds
+          if (hitPt.z < 0 || hitPt.z > height) {
+            const terminal = checkApertureAndApex(pos, rayDir, height, radius);
+            if (terminal) {
+              segments.push({ start: pos.clone(), end: terminal.point });
+              fate = terminal.fate;
+            }
+            break;
+          }
+
+          segments.push({ start: pos.clone(), end: hitPt.clone() });
+
+          // Reflect off cone surface; normal points inward and upward in Z
+          const normal = new THREE.Vector3(
+            hitPt.x,
+            hitPt.y,
+            -slopeSq * hitPt.z,
+          ).normalize();
+          rayDir.addScaledVector(normal, -2 * rayDir.dot(normal)).normalize();
+
+          pos = hitPt.clone().addScaledVector(rayDir, 1e-6);
+          bounces++;
+        }
+
+        // Classify rays that exhausted max bounces
+        if (fate === null) {
+          const inCone =
+            pos.z > 0 &&
+            pos.z < height &&
+            Math.sqrt(pos.x * pos.x + pos.y * pos.y) <
+              slopeRatio * pos.z + 1e-6;
+          fate = inCone ? "trapped" : "escaped";
+        }
+
+        return { segments, bounces, fate };
+      }
+
+      /**
+       * Build a single batched LineSegments object from all ray path segments.
+       * Much cheaper than one BufferGeometry per segment.
+       */
+      function buildRayLines(allSegments) {
+        // Two vertices per segment
+        const positions = new Float32Array(allSegments.length * 6);
+        let i = 0;
+        for (const { start, end } of allSegments) {
+          positions[i++] = start.x;
+          positions[i++] = start.y;
+          positions[i++] = start.z;
+          positions[i++] = end.x;
+          positions[i++] = end.y;
+          positions[i++] = end.z;
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        return new THREE.LineSegments(
+          geo,
+          new THREE.LineBasicMaterial({
+            color: 0xb69985,
+            transparent: true,
+            opacity: 0.2,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+        );
+      }
+
+      /** Read all simulation parameters from the DOM inputs. */
+      function readParams() {
+        return {
+          alpha: parseFloat(inputs.alpha.value) || 25,
+          height: parseFloat(inputs.height.value) || 4,
+          radius: parseFloat(inputs.radius.value) || 1.86,
+          sourceR: parseFloat(inputs.sourceR.value) || 0,
+          sourcePhi: parseFloat(inputs.sourcePhi.value) || 0,
+          sourceZ: parseFloat(inputs.sourceZ.value) || 2.5,
+          divergence: parseFloat(inputs.divergence.value) || 4,
+          beamRadius: (parseFloat(inputs.diameter.value) || 0.3) * 0.5,
+          numRays: Math.max(
+            1,
+            Math.floor(parseFloat(inputs.rays.value) || 200),
+          ),
+          maxBounces: Math.max(
+            1,
+            Math.floor(parseFloat(inputs.maxBounces.value) || 12),
+          ),
+          isotropic: inputs.isotropic.checked,
+        };
+      }
+
+      /** Update the statistics display panel. */
+      function displayStats({
+        total,
+        escaped,
+        trapped,
+        avgBounces,
+        maxBounces,
+      }) {
+        stats.total.textContent = total;
+        stats.escaped.textContent = escaped;
+        stats.trapped.textContent = trapped;
+        stats.avgBounces.textContent = avgBounces.toFixed(2);
+        stats.maxBounces.textContent = maxBounces;
+      }
+
+      // Track last cone params to avoid unnecessary geometry rebuilds
+      let lastConeParams = null;
+
+      /** Main simulation entry point. */
+      function runSimulation() {
+        const p = readParams();
+
+        // Only rebuild cone geometry when its defining parameters change
+        const coneKey = `${p.alpha}|${p.height}|${p.radius}`;
+        if (coneKey !== lastConeParams) {
+          buildCone(p.alpha, p.height, p.radius);
+          lastConeParams = coneKey;
+        }
+
+        const phiRad = (p.sourcePhi * Math.PI) / 180;
+        const divRad = (p.divergence * Math.PI) / 180;
+        const slopeRatio = p.radius / p.height;
+        const sourceCenter = new THREE.Vector3(
+          p.sourceR * Math.cos(phiRad),
+          p.sourceR * Math.sin(phiRad),
+          p.sourceZ,
+        );
+
+        updateSourceMarker(sourceCenter);
+
+        let totalEscaped = 0;
+        let totalTrapped = 0;
+        let totalBounces = 0;
+        let maxBouncesSeen = 0;
+        const allSegments = [];
+
+        for (let i = 0; i < p.numRays; i++) {
+          const dir = p.isotropic
+            ? sampleIsotropicDirection()
+            : sampleBeamDirection(divRad);
+          const origin = sampleOrigin(sourceCenter, p.beamRadius, p.isotropic);
+          const result = traceRay(
+            origin,
+            dir,
+            p.height,
+            p.radius,
+            slopeRatio,
+            p.maxBounces,
+          );
+
+          if (result.fate === "escaped") totalEscaped++;
+          else totalTrapped++;
+
+          totalBounces += result.bounces;
+          maxBouncesSeen = Math.max(maxBouncesSeen, result.bounces);
+          allSegments.push(...result.segments);
+        }
+
+        clearGroup(rayGroup);
+        if (allSegments.length > 0) rayGroup.add(buildRayLines(allSegments));
+
+        displayStats({
+          total: p.numRays,
+          escaped: totalEscaped,
+          trapped: totalTrapped,
+          avgBounces: p.numRays > 0 ? totalBounces / p.numRays : 0,
+          maxBounces: maxBouncesSeen,
+        });
+
+        // Expose last params for JSON export
+        lastSimParams = p;
+      }
+
+      let lastSimParams = null;
+
+      // ─── Debounced simulation trigger ─────────────────────────────
+      let debounceTimer = null;
+
+      function scheduleSimulation() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(runSimulation, 100);
+      }
+
+      // ─── Input event wiring ───────────────────────────────────────
+      inputs.alpha.addEventListener("input", () => {
+        syncRadiusFromAngle();
+        scheduleSimulation();
+      });
+      inputs.radius.addEventListener("input", () => {
+        syncAngleFromRadius();
+        scheduleSimulation();
+      });
+      inputs.height.addEventListener("input", () => {
+        syncRadiusFromAngle();
+        scheduleSimulation();
+      });
+
+      [
+        inputs.sourceR,
+        inputs.sourcePhi,
+        inputs.sourceZ,
+        inputs.isotropic,
+        inputs.divergence,
+        inputs.diameter,
+        inputs.rays,
+        inputs.maxBounces,
+      ].forEach((inp) => inp.addEventListener("input", scheduleSimulation));
+
+      // ─── Export helpers ───────────────────────────────────────────
+
+      /** Trigger a file download from a data URL or object URL. */
+      function triggerDownload(url, filename) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      el("btn-export-png").addEventListener("click", () => {
+        renderer.render(scene, camera);
+        triggerDownload(
+          renderer.domElement.toDataURL("image/png"),
+          "cone_raytrace.png",
+        );
+      });
+
+      el("btn-export-jpg").addEventListener("click", () => {
+        renderer.render(scene, camera);
+        triggerDownload(
+          renderer.domElement.toDataURL("image/jpeg", 0.92),
+          "cone_raytrace.jpg",
+        );
+      });
+
+      el("btn-export-json").addEventListener("click", () => {
+        if (!lastSimParams) return;
+        const p = lastSimParams;
+
+        // Collect all segment positions from the batched geometry
+        const rayPaths = [];
+        for (const child of rayGroup.children) {
+          if (!child.isLineSegments) continue;
+          const attr = child.geometry.attributes.position;
+          for (let i = 0; i < attr.count; i += 2) {
+            rayPaths.push([
+              { x: attr.getX(i), y: attr.getY(i), z: attr.getZ(i) },
+              { x: attr.getX(i + 1), y: attr.getY(i + 1), z: attr.getZ(i + 1) },
+            ]);
+          }
+        }
+
+        const payload = {
+          cone: { halfAngleDeg: p.alpha, height: p.height, radius: p.radius },
+          source: { r: p.sourceR, phiDeg: p.sourcePhi, z: p.sourceZ },
+          beam: { divergenceDeg: p.divergence, diameter: p.beamRadius * 2 },
+          rays: { count: p.numRays, maxBounces: p.maxBounces },
+          stats: {
+            total: parseInt(stats.total.textContent),
+            escaped: parseInt(stats.escaped.textContent),
+            trapped: parseInt(stats.trapped.textContent),
+            avgBounces: parseFloat(stats.avgBounces.textContent),
+            maxBounces: parseInt(stats.maxBounces.textContent),
+          },
+          rayPaths,
+        };
+
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, "cone_raytrace.json");
+        URL.revokeObjectURL(url);
+      });
+
+      // ─── Resize handler ───────────────────────────────────────────
+      function onResize() {
+        const w = viewport.clientWidth;
+        const h = viewport.clientHeight;
+        if (w === 0 || h === 0) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+      window.addEventListener("resize", onResize);
+
+      // ─── Render loop ──────────────────────────────────────────────
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      // ─── Bootstrap ────────────────────────────────────────────────
+      onResize();
+      runSimulation();
+      animate();
+    </script>
+  </body>
+</html>
