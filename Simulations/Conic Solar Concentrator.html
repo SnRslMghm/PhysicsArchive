@@ -1,0 +1,1921 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Conic Solar Concentrator</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --clr-accent: #b69985;
+        --clr-secondary: #d5d5d5;
+        --clr-text: #fffffd;
+        --bg-gradient: linear-gradient(
+          135deg,
+          #000000 0%,
+          #363435 45%,
+          #734940 100%
+        );
+        --sidebar-width: clamp(280px, 38vw, 460px);
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --dur: 0.25s;
+      }
+      html,
+      body {
+        height: 100dvh;
+        overflow: hidden;
+      }
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          sans-serif;
+        background: var(--bg-gradient);
+        color: var(--clr-text);
+        width: 100vw;
+        display: flex;
+        flex-direction: row;
+        position: relative;
+      }
+      #sidebar {
+        width: var(--sidebar-width);
+        min-width: var(--sidebar-width);
+        background: rgba(15, 15, 15, 0.4);
+        backdrop-filter: blur(28px) saturate(1.3);
+        -webkit-backdrop-filter: blur(28px) saturate(1.3);
+        border-right: 1px solid rgba(255, 255, 253, 0.08);
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        overflow: hidden;
+        box-shadow: 2px 0 40px rgba(0, 0, 0, 0.4);
+        transition:
+          transform 0.3s ease,
+          width 0.3s ease,
+          min-width 0.3s ease,
+          border 0.3s ease;
+        z-index: 100;
+        flex-shrink: 0;
+      }
+      .sidebar-hidden #sidebar {
+        transform: translateX(-110%);
+        width: 0;
+        min-width: 0;
+        border: none;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+      }
+      .sidebar-inner {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        padding: clamp(16px, 2.5vh, 24px) clamp(16px, 2.5vw, 24px) 0;
+        overflow: hidden;
+        width: 100%;
+        flex-shrink: 0;
+      }
+      #viewport {
+        flex: 1;
+        height: 100dvh;
+        position: relative;
+        cursor: grab;
+        min-width: 0;
+        z-index: 1;
+        overflow: hidden;
+      }
+      #viewport:active {
+        cursor: grabbing;
+      }
+      #viewport canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .app-title {
+        font-size: clamp(16px, 2.2vw, 22px);
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        text-align: center;
+        padding-bottom: clamp(10px, 1.5vh, 14px);
+        border-bottom: 1px solid rgba(255, 255, 253, 0.08);
+        margin-bottom: clamp(12px, 1.8vh, 16px);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: linear-gradient(
+          135deg,
+          #fffffd 0%,
+          #d5d5d5 50%,
+          #b69985 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .app-title .icon {
+        -webkit-text-fill-color: initial;
+        color: var(--clr-accent);
+        font-size: clamp(18px, 2.4vw, 24px);
+      }
+      .app-title .sub {
+        font-size: clamp(9px, 0.9vw, 11px);
+        font-weight: 500;
+        -webkit-text-fill-color: rgba(255, 255, 253, 0.4);
+        letter-spacing: 0.3px;
+      }
+      .sidebar-scroll {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(10px, 1.5vh, 16px);
+        padding-right: 6px;
+        min-height: 0;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 253, 0.15) transparent;
+        overscroll-behavior: contain;
+      }
+      .sidebar-scroll::-webkit-scrollbar {
+        width: 4px;
+      }
+      .sidebar-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .sidebar-scroll::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 253, 0.15);
+        border-radius: 4px;
+      }
+      .export-footer {
+        flex-shrink: 0;
+        display: flex;
+        gap: clamp(8px, 1vw, 12px);
+        padding: clamp(12px, 1.5vh, 16px) 0 clamp(16px, 2vh, 20px);
+        padding-bottom: max(
+          clamp(16px, 2vh, 20px),
+          env(safe-area-inset-bottom, 0px)
+        );
+        border-top: 1px solid rgba(255, 255, 253, 0.05);
+        margin-top: 8px;
+      }
+      .panel {
+        background: rgba(255, 255, 253, 0.03);
+        border: 1px solid rgba(255, 255, 253, 0.06);
+        border-radius: clamp(12px, 1.2vw, 16px);
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        transition:
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          background var(--dur) var(--ease);
+        flex-shrink: 0;
+      }
+      .panel:hover {
+        border-color: rgba(255, 255, 253, 0.12);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        background: rgba(255, 255, 253, 0.05);
+      }
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: clamp(8px, 1vh, 12px) clamp(12px, 1.8vw, 18px);
+        background: rgba(255, 255, 253, 0.02);
+        border-bottom: 1px solid rgba(255, 255, 253, 0.04);
+      }
+      .panel-title {
+        font-size: clamp(9px, 0.9vw, 11px);
+        font-weight: 600;
+        color: var(--clr-secondary);
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        opacity: 0.9;
+      }
+      .panel-body {
+        padding: clamp(12px, 1.8vh, 18px) clamp(12px, 1.8vw, 18px);
+        display: flex;
+        flex-direction: column;
+        gap: clamp(12px, 1.8vh, 16px);
+      }
+      .param-grid-2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: clamp(12px, 1.8vh, 16px) clamp(16px, 2vw, 24px);
+        align-items: start;
+      }
+      .param-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .param-item label {
+        font-size: clamp(8px, 0.85vw, 10px);
+        color: var(--clr-secondary);
+        letter-spacing: 0.3px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+      }
+      .param-item input[type="number"] {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 253, 0.1);
+        border-radius: 8px;
+        padding: clamp(6px, 0.9vh, 8px) clamp(8px, 1vw, 12px);
+        color: var(--clr-text);
+        font-size: clamp(12px, 1.1vw, 14px);
+        font-weight: 500;
+        width: 100%;
+        font-family: inherit;
+        transition:
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
+      }
+      .param-item input[type="number"]::-webkit-inner-spin-button,
+      .param-item input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+      }
+      .param-item input[type="number"]:hover {
+        border-color: rgba(255, 255, 253, 0.25);
+        background: rgba(0, 0, 0, 0.3);
+      }
+      .param-item input[type="number"]:focus {
+        outline: none;
+        border-color: var(--clr-accent);
+        box-shadow: 0 0 0 3px rgba(182, 153, 133, 0.15);
+        background: rgba(0, 0, 0, 0.4);
+      }
+      .param-item input[type="number"]:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .param-item input.error {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+      }
+      .toggle {
+        position: relative;
+        width: clamp(38px, 4.5vw, 44px);
+        height: clamp(22px, 2.4vw, 24px);
+        flex-shrink: 0;
+        cursor: pointer;
+        display: inline-block;
+      }
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+      .toggle-track {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 253, 0.08);
+        border: 1px solid rgba(255, 255, 253, 0.15);
+        border-radius: 34px;
+        transition:
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease);
+      }
+      .toggle-thumb {
+        position: absolute;
+        height: calc(100% - 6px);
+        width: calc(50% - 4px);
+        left: 3px;
+        top: 3px;
+        background: var(--clr-secondary);
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        transition:
+          left var(--dur) var(--ease),
+          background var(--dur) var(--ease);
+      }
+      .toggle input:checked ~ .toggle-track {
+        background: var(--clr-accent);
+        border-color: var(--clr-accent);
+      }
+      .toggle input:checked ~ .toggle-thumb {
+        left: calc(50% + 1px);
+        background: var(--clr-text);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      }
+      .toggle input:disabled ~ .toggle-track {
+        opacity: 0.2;
+        cursor: not-allowed;
+      }
+      .toggle input:disabled ~ .toggle-thumb {
+        opacity: 0.4;
+      }
+      .toggle-label {
+        font-size: clamp(10px, 1vw, 12px);
+        font-weight: 500;
+        color: var(--clr-secondary);
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+      }
+      .toggle-hint {
+        font-size: 10px;
+        color: #e74c3c;
+        opacity: 0.8;
+        line-height: 1.4;
+        margin-bottom: 10px;
+      }
+      .btn {
+        background: rgba(255, 255, 253, 0.05);
+        border: 1px solid rgba(255, 255, 253, 0.1);
+        border-radius: 8px;
+        padding: clamp(6px, 1vh, 10px) clamp(10px, 1.4vw, 16px);
+        color: var(--clr-secondary);
+        font-weight: 500;
+        font-size: clamp(11px, 1.1vw, 13px);
+        cursor: pointer;
+        flex: 1;
+        text-align: center;
+        font-family: inherit;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          color var(--dur) var(--ease),
+          transform var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
+      }
+      .btn:hover {
+        background: rgba(255, 255, 253, 0.1);
+        border-color: rgba(255, 255, 253, 0.25);
+        color: var(--clr-text);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+      #btn-toggle-sidebar {
+        position: fixed;
+        left: 16px;
+        top: 16px;
+        z-index: 200;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 253, 0.15);
+        color: var(--clr-text);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        line-height: 1;
+        user-select: none;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition: all var(--dur) var(--ease);
+      }
+      #btn-toggle-sidebar:hover {
+        background: rgba(0, 0, 0, 0.8);
+        border-color: var(--clr-accent);
+        transform: scale(1.05);
+      }
+      @media (max-width: 750px) {
+        #sidebar {
+          position: fixed;
+          inset: 0;
+          width: 100vw !important;
+          min-width: 100vw !important;
+          height: 100dvh;
+          border-right: none;
+          transform: translateX(0);
+          transition: transform 0.3s ease;
+          z-index: 150;
+        }
+        .sidebar-hidden #sidebar {
+          transform: translateX(-105%);
+          pointer-events: none;
+        }
+        .sidebar-inner {
+          width: 100vw;
+        }
+        #viewport {
+          position: fixed;
+          inset: 0;
+          width: 100vw;
+          height: 100dvh;
+          flex: unset;
+          z-index: 1;
+        }
+        #btn-toggle-sidebar {
+          z-index: 160;
+        }
+      }
+      .solar-inline-row {
+        display: flex;
+        align-items: center;
+        gap: clamp(12px, 2vw, 24px);
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+      .solar-inline-row .inline-item {
+        display: flex;
+        align-items: center;
+        gap: clamp(8px, 1vw, 12px);
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .solar-inline-row .inline-item .param-item {
+        flex: 1;
+        min-width: 90px;
+      }
+      .absorber-body-disabled {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+      .auto-opt-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-top: clamp(10px, 1.5vh, 14px);
+        border-top: 1px solid rgba(255, 255, 253, 0.08);
+        margin-top: 4px;
+      }
+      .auto-opt-status-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 12px;
+        background: rgba(255, 255, 253, 0.08);
+        color: var(--clr-secondary);
+        opacity: 0.6;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        white-space: nowrap;
+        text-align: center;
+      }
+      .auto-opt-status-badge.active {
+        background: rgba(100, 180, 130, 0.2);
+        color: #7cbf9a;
+        opacity: 1;
+        font-size: 11px;
+        text-transform: none;
+        border: 1px solid rgba(124, 191, 154, 0.3);
+      }
+      .auto-opt-status-badge.optimizing {
+        background: rgba(255, 200, 50, 0.15);
+        color: #f0c040;
+        opacity: 1;
+        border: 1px solid rgba(240, 192, 64, 0.3);
+        animation: pulse 0.8s ease-in-out infinite alternate;
+      }
+      @keyframes pulse {
+        0% {
+          opacity: 0.6;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .optimal-length-container {
+        display: none;
+        padding: 10px 14px;
+        background: rgba(124, 191, 154, 0.1);
+        border: 1px solid rgba(124, 191, 154, 0.25);
+        border-radius: 8px;
+        margin-top: 10px;
+        text-align: center;
+      }
+      .optimal-length-text {
+        color: #7cbf9a;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+      }
+      .optimal-length-text span {
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .credits {
+        position: absolute;
+        bottom: 12px;
+        right: 16px;
+        text-align: right;
+        z-index: 50;
+        pointer-events: none;
+        font-size: 10px;
+        color: rgba(255, 255, 253, 0.3);
+        line-height: 1.5;
+        font-weight: 400;
+        letter-spacing: 0.3px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <aside id="sidebar" aria-label="Simulation controls">
+      <div class="sidebar-inner">
+        <h1 class="app-title">
+          <span class="icon" aria-hidden="true">✦</span>
+          Conic Solar Concentrator
+        </h1>
+        <div class="sidebar-scroll">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Cone geometry</span>
+            </div>
+            <div class="panel-body">
+              <div class="param-grid-2col">
+                <div class="param-item" style="grid-column: span 2">
+                  <label for="input-alpha"> Half-angle (°) </label>
+                  <input
+                    type="number"
+                    id="input-alpha"
+                    value="25"
+                    step="0.5"
+                    min="0.1"
+                    max="89.9"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-radius"> Radius </label>
+                  <input
+                    type="number"
+                    id="input-radius"
+                    value="1.86"
+                    step="0.05"
+                    min="0"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-height"> Height </label>
+                  <input
+                    type="number"
+                    id="input-height"
+                    value="4.0"
+                    step="0.1"
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-solar">
+            <div class="panel-header">
+              <span class="panel-title">Solar Source</span>
+            </div>
+            <div class="panel-body">
+              <div class="param-grid-2col">
+                <div class="param-item">
+                  <label for="input-sun-angle"> Incident Angle (°) </label>
+                  <input
+                    type="number"
+                    id="input-sun-angle"
+                    value="0"
+                    min="-80"
+                    max="80"
+                    step="0.5"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-sun-rays"> Beam Rays </label>
+                  <input
+                    type="number"
+                    id="input-sun-rays"
+                    value="200"
+                    min="20"
+                    max="800"
+                    step="10"
+                  />
+                </div>
+              </div>
+              <div class="solar-inline-row">
+                <div class="inline-item">
+                  <div class="param-item">
+                    <label for="input-max-bounces"> Max Bounces </label>
+                    <input
+                      type="number"
+                      id="input-max-bounces"
+                      value="12"
+                      min="1"
+                      max="30"
+                      step="1"
+                    />
+                  </div>
+                </div>
+                <div class="inline-item">
+                  <label class="toggle" for="input-show-incoming">
+                    <input type="checkbox" id="input-show-incoming" checked />
+                    <span class="toggle-track" aria-hidden="true"></span>
+                    <span class="toggle-thumb" aria-hidden="true"></span>
+                  </label>
+                  <label class="toggle-label" for="input-show-incoming">
+                    Show Incoming
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-absorber">
+            <div class="panel-header">
+              <span class="panel-title">Absorber</span>
+              <label class="toggle" for="input-absorber-enabled">
+                <input type="checkbox" id="input-absorber-enabled" />
+                <span class="toggle-track" aria-hidden="true"></span>
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </label>
+            </div>
+            <div class="panel-body" id="absorber-body">
+              <span
+                class="toggle-hint"
+                id="absorber-disabled-hint"
+                style="display: none"
+              >
+                Only available at 0° incident angle — optimization is only valid
+                for rays parallel to the axis.
+              </span>
+              <div class="param-grid-2col">
+                <div class="param-item">
+                  <label for="input-rod-diameter"> Diameter </label>
+                  <input
+                    type="number"
+                    id="input-rod-diameter"
+                    value="0.30"
+                    step="0.02"
+                    min="0.01"
+                  />
+                </div>
+                <div class="param-item">
+                  <label for="input-rod-length"> Length </label>
+                  <input
+                    type="number"
+                    id="input-rod-length"
+                    value="0.80"
+                    step="0.05"
+                    min="0.01"
+                  />
+                </div>
+              </div>
+              <div class="auto-opt-row">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <label class="toggle" for="input-auto-optimize">
+                    <input type="checkbox" id="input-auto-optimize" />
+                    <span class="toggle-track" aria-hidden="true"></span>
+                    <span class="toggle-thumb" aria-hidden="true"></span>
+                  </label>
+                  <label class="toggle-label" for="input-auto-optimize">
+                    Optimize Absorber
+                  </label>
+                </div>
+                <span
+                  class="auto-opt-status-badge"
+                  id="auto-opt-status-badge"
+                ></span>
+              </div>
+              <div id="optimal-length-output" class="optimal-length-container">
+                <div class="optimal-length-text" id="optimal-length-text"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="export-footer">
+          <button class="btn" id="btn-export-png">Export PNG</button>
+          <button class="btn" id="btn-export-jpg">Export JPG</button>
+          <button class="btn" id="btn-export-json">Export JSON</button>
+        </div>
+      </div>
+    </aside>
+
+    <button
+      id="btn-toggle-sidebar"
+      title="Toggle sidebar"
+      aria-label="Toggle sidebar"
+    >
+      ✕
+    </button>
+    <div id="viewport" aria-hidden="true"></div>
+
+    <div class="credits">
+      Developed by <strong>SnRslMghm</strong><br />Powered with assistance from
+      <strong>Claude</strong>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      // ─── DOM refs ──────────────────────────────────────────────────
+      const el = (id) => document.getElementById(id);
+      const inputs = {
+        alpha: el("input-alpha"),
+        height: el("input-height"),
+        radius: el("input-radius"),
+        sunAngle: el("input-sun-angle"),
+        sunRays: el("input-sun-rays"),
+        maxBounces: el("input-max-bounces"),
+        showIncoming: el("input-show-incoming"),
+        absorberEnabled: el("input-absorber-enabled"),
+        rodDiameter: el("input-rod-diameter"),
+        rodLength: el("input-rod-length"),
+        autoOptimize: el("input-auto-optimize"),
+      };
+      const absorberBody = el("absorber-body");
+      const absorberDisabledHint = el("absorber-disabled-hint");
+      const autoOptStatusBadge = el("auto-opt-status-badge");
+      const optimalLengthOutput = el("optimal-length-output");
+      const optimalLengthText = el("optimal-length-text");
+
+      // ─── Sidebar toggle ───────────────────────────────────────────
+      const btnToggle = el("btn-toggle-sidebar");
+      function setSidebarVisible(v) {
+        document.body.classList.toggle("sidebar-hidden", !v);
+        btnToggle.textContent = v ? "✕" : "☰";
+        btnToggle.setAttribute(
+          "aria-label",
+          v ? "Hide sidebar" : "Show sidebar",
+        );
+        setTimeout(() => window.dispatchEvent(new Event("resize")), 320);
+      }
+      btnToggle.addEventListener("click", () =>
+        setSidebarVisible(document.body.classList.contains("sidebar-hidden")),
+      );
+      setSidebarVisible(true);
+
+      // ─── Three.js ──────────────────────────────────────────────────
+      const viewport = el("viewport");
+      const scene = new THREE.Scene();
+      scene.background = null;
+      const camera = new THREE.PerspectiveCamera(
+        35,
+        viewport.clientWidth / viewport.clientHeight,
+        0.1,
+        100,
+      );
+      camera.position.set(5, 1, 7);
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true,
+        alpha: true,
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x000000, 0);
+      viewport.appendChild(renderer.domElement);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 0, 1.5);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.1;
+      controls.rotateSpeed = 0.8;
+      controls.zoomSpeed = 1.2;
+      controls.panSpeed = 0.5;
+      controls.update();
+
+      scene.add(new THREE.AmbientLight(0x744943, 0.4));
+      const dl = new THREE.DirectionalLight(0xfffffd, 0.8);
+      dl.position.set(2, 8, 6);
+      scene.add(dl);
+      const fl = new THREE.DirectionalLight(0xb69985, 0.5);
+      fl.position.set(-4, 2, -3);
+      scene.add(fl);
+      const bl = new THREE.DirectionalLight(0xd5d5d5, 0.2);
+      bl.position.set(0, -2, -5);
+      scene.add(bl);
+
+      const coneGroup = new THREE.Group();
+      const rayGroup = new THREE.Group();
+      const absorberGroup = new THREE.Group();
+      scene.add(coneGroup, rayGroup, absorberGroup);
+
+      function disposeObject(o) {
+        if (!o) return;
+        o.geometry?.dispose();
+        if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
+        else o.material?.dispose();
+      }
+      function clearGroup(g) {
+        for (const c of g.children) disposeObject(c);
+        g.clear();
+      }
+
+      // ─── Cone ──────────────────────────────────────────────────────
+      function buildCone(halfAngleDeg, height, radius) {
+        clearGroup(coneGroup);
+        const shellGeo = new THREE.CylinderGeometry(
+          radius,
+          0,
+          height,
+          48,
+          1,
+          true,
+        );
+        const shellMat = new THREE.MeshPhongMaterial({
+          color: 0xb69985,
+          transparent: true,
+          opacity: 0.08,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          shininess: 60,
+          emissive: 0x744943,
+          emissiveIntensity: 0.05,
+        });
+        const shellMesh = new THREE.Mesh(shellGeo, shellMat);
+        shellMesh.rotation.x = Math.PI / 2;
+        shellMesh.position.z = height / 2;
+
+        const wireGeo = new THREE.EdgesGeometry(
+          new THREE.CylinderGeometry(radius, 0, height, 32, 6, true),
+        );
+        const wireMat = new THREE.LineBasicMaterial({
+          color: 0xd5d5d5,
+          transparent: true,
+          opacity: 0.1,
+        });
+        const wireLines = new THREE.LineSegments(wireGeo, wireMat);
+        wireLines.rotation.x = Math.PI / 2;
+        wireLines.position.z = height / 2;
+
+        const ringPts = Array.from({ length: 49 }, (_, i) => {
+          const t = (i / 48) * Math.PI * 2;
+          return new THREE.Vector3(
+            radius * Math.cos(t),
+            radius * Math.sin(t),
+            height,
+          );
+        });
+        const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+        const ringMat = new THREE.LineBasicMaterial({
+          color: 0xfffffd,
+          transparent: true,
+          opacity: 0.2,
+        });
+        const ring = new THREE.Line(ringGeo, ringMat);
+        coneGroup.add(shellMesh, wireLines, ring);
+      }
+
+      // ─── Absorber ──────────────────────────────────────────────────
+      function buildAbsorber(diameter, length, absorptivity, color = 0x221111) {
+        clearGroup(absorberGroup);
+        const radius = diameter / 2;
+        if (radius < 1e-6 || length < 1e-6) return;
+
+        const opacity = Math.min(1, Math.max(0, absorptivity / 100));
+        const geo = new THREE.CylinderGeometry(radius, radius, length, 28, 1);
+        const mat = new THREE.MeshPhongMaterial({
+          color: color,
+          emissive: 0x000000,
+          emissiveIntensity: 0.0,
+          transparent: true,
+          opacity: opacity,
+          shininess: 10,
+          specular: new THREE.Color(0x111111),
+          depthWrite: opacity > 0.01,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(0, 0, length / 2);
+        mesh.rotation.x = Math.PI / 2;
+        absorberGroup.add(mesh);
+
+        const edgeGeo = new THREE.EdgesGeometry(geo);
+        const edgeMat = new THREE.LineBasicMaterial({
+          color: 0x555555,
+          transparent: true,
+          opacity: Math.min(0.3, opacity * 0.5 + 0.05),
+        });
+        const wire = new THREE.LineSegments(edgeGeo, edgeMat);
+        wire.position.set(0, 0, length / 2);
+        wire.rotation.x = Math.PI / 2;
+        absorberGroup.add(wire);
+      }
+
+      function updateAbsorberVisibility(v) {
+        absorberGroup.visible = v;
+      }
+
+      // ─── Intersection helpers ─────────────────────────────────────
+
+      // Accurately intersects a ray with the interior of the cone, solving the quadratic correctly
+      // to ensure the closest surface is consistently chosen (fixes the negative A root sorting bug).
+      function intersectCone(pos, rayDir, slopeRatio, height) {
+        const A =
+          rayDir.x * rayDir.x +
+          rayDir.y * rayDir.y -
+          slopeRatio * slopeRatio * rayDir.z * rayDir.z;
+        const Bv =
+          2 *
+          (pos.x * rayDir.x +
+            pos.y * rayDir.y -
+            slopeRatio * slopeRatio * pos.z * rayDir.z);
+        const C =
+          pos.x * pos.x +
+          pos.y * pos.y -
+          slopeRatio * slopeRatio * pos.z * pos.z;
+
+        if (Math.abs(A) < 1e-12) {
+          if (Math.abs(Bv) > 1e-12) {
+            const t = -C / Bv;
+            if (t > 1e-8) {
+              const hz = pos.z + t * rayDir.z;
+              if (hz > 0 && hz < height) {
+                return { t, pt: pos.clone().addScaledVector(rayDir, t) };
+              }
+            }
+          }
+          return null;
+        }
+
+        const disc = Bv * Bv - 4 * A * C;
+        if (disc >= 0) {
+          const sq = Math.sqrt(disc);
+          const roots = [(-Bv - sq) / (2 * A), (-Bv + sq) / (2 * A)].sort(
+            (a, b) => a - b,
+          );
+          for (const t of roots) {
+            if (t > 1e-8) {
+              const hz = pos.z + t * rayDir.z;
+              if (hz > 0 && hz < height) {
+                return { t, pt: pos.clone().addScaledVector(rayDir, t) };
+              }
+            }
+          }
+        }
+        return null;
+      }
+
+      function intersectZCylinder(origin, dir, radius, length) {
+        const ox = origin.x,
+          oy = origin.y,
+          oz = origin.z;
+        const dx = dir.x,
+          dy = dir.y,
+          dz = dir.z;
+
+        const a = dx * dx + dy * dy;
+        const b = 2 * (ox * dx + oy * dy);
+        const c = ox * ox + oy * oy - radius * radius;
+
+        let tHit = Infinity;
+        let hitNormal = null;
+        let hitPoint = null;
+
+        if (Math.abs(a) > 1e-12) {
+          const disc = b * b - 4 * a * c;
+          if (disc >= 0) {
+            const sq = Math.sqrt(disc);
+            for (const t of [(-b - sq) / (2 * a), (-b + sq) / (2 * a)]) {
+              if (t > 1e-8) {
+                const z = oz + t * dz;
+                if (z >= -1e-8 && z <= length + 1e-8) {
+                  if (t < tHit) {
+                    tHit = t;
+                    const px = ox + t * dx,
+                      py = oy + t * dy;
+                    const rLen = Math.sqrt(px * px + py * py);
+                    if (rLen > 1e-12) {
+                      hitNormal = new THREE.Vector3(px / rLen, py / rLen, 0);
+                    } else {
+                      hitNormal = new THREE.Vector3(0, 0, 1);
+                    }
+                    hitPoint = origin.clone().addScaledVector(dir, t);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        for (const [zCap, nz] of [
+          [0, -1],
+          [length, 1],
+        ]) {
+          if (Math.abs(dz) > 1e-12) {
+            const t = (zCap - oz) / dz;
+            if (t > 1e-8) {
+              const px = ox + t * dx,
+                py = oy + t * dy;
+              if (px * px + py * py <= radius * radius + 1e-8) {
+                if (t < tHit) {
+                  tHit = t;
+                  hitNormal = new THREE.Vector3(0, 0, nz);
+                  hitPoint = origin.clone().addScaledVector(dir, t);
+                }
+              }
+            }
+          }
+        }
+
+        if (tHit === Infinity) return null;
+        return { t: tHit, point: hitPoint, normal: hitNormal };
+      }
+
+      function checkApertureAndApex(pos, dir, height, radius) {
+        if (dir.z > 1e-9) {
+          const t = (height - pos.z) / dir.z;
+          if (t > 1e-8) {
+            const hit = pos.clone().addScaledVector(dir, t);
+            if (hit.x * hit.x + hit.y * hit.y <= radius * radius + 1e-6)
+              return { point: hit, fate: "escaped" };
+          }
+        }
+        if (dir.z < -1e-9) {
+          const t = -pos.z / dir.z;
+          if (t > 1e-8) {
+            const hit = pos.clone().addScaledVector(dir, t);
+            if (hit.x * hit.x + hit.y * hit.y < 1e-6)
+              return { point: hit, fate: "trapped" };
+          }
+        }
+        return null;
+      }
+
+      // Compute specular reflection direction: d - 2(d·n)n
+      function reflectDirection(dir, normal) {
+        return dir
+          .clone()
+          .addScaledVector(normal, -2 * dir.dot(normal))
+          .normalize();
+      }
+
+      // ─── Core ray tracer (used for the 3D visualization) ──────────
+      function traceRay(
+        origin,
+        dir,
+        height,
+        radius,
+        slopeRatio,
+        maxBounces,
+        reflectivity,
+        absorberParams,
+        energyFraction = 1.0,
+      ) {
+        const segments = [];
+        let pos = origin.clone();
+        let rayDir = dir.clone();
+        let bounces = 0;
+        let fate = null;
+        let hasHitSurface = false;
+        let intensity = 1.0;
+        let absorbedEnergy = 0;
+        let remainingEnergy = energyFraction;
+
+        const enabled = absorberParams && absorberParams.enabled === true;
+        const absRadius = enabled ? absorberParams.radius : 0;
+        const absLength = enabled ? absorberParams.length : 0;
+        const alpha = enabled
+          ? Math.min(1, Math.max(0, absorberParams.absorptivity / 100))
+          : 0;
+        const collisionEnabled = enabled && absRadius > 0 && absLength > 0;
+
+        for (let b = 0; b < maxBounces; b++) {
+          let tCone = null,
+            coneHitPt = null,
+            coneNormal = null;
+          const coneHit = intersectCone(pos, rayDir, slopeRatio, height);
+          if (coneHit) {
+            tCone = coneHit.t;
+            coneHitPt = coneHit.pt;
+            coneNormal = new THREE.Vector3(
+              coneHitPt.x,
+              coneHitPt.y,
+              -slopeRatio * slopeRatio * coneHitPt.z,
+            ).normalize();
+          }
+
+          let tAbs = null,
+            absHitPt = null,
+            absNormal = null;
+          if (collisionEnabled) {
+            const result = intersectZCylinder(
+              pos,
+              rayDir,
+              absRadius,
+              absLength,
+            );
+            if (result) {
+              tAbs = result.t;
+              absHitPt = result.point;
+              absNormal = result.normal;
+            }
+          }
+
+          let hitType = null,
+            tHit = Infinity,
+            hitPt = null,
+            hitNormal = null;
+          if (tCone !== null && tCone > 1e-8 && tCone < tHit) {
+            tHit = tCone;
+            hitType = "cone";
+            hitPt = coneHitPt;
+            hitNormal = coneNormal;
+          }
+          if (tAbs !== null && tAbs > 1e-8 && tAbs < tHit) {
+            tHit = tAbs;
+            hitType = "absorber";
+            hitPt = absHitPt;
+            hitNormal = absNormal;
+          }
+
+          if (hitType === null) {
+            const terminal = checkApertureAndApex(pos, rayDir, height, radius);
+            if (terminal) {
+              segments.push({
+                start: pos.clone(),
+                end: terminal.point,
+                beforeFirstHit: !hasHitSurface,
+                intensity: remainingEnergy * intensity,
+                isAbsorberHit: false,
+              });
+              fate = terminal.fate;
+            }
+            break;
+          }
+
+          segments.push({
+            start: pos.clone(),
+            end: hitPt.clone(),
+            beforeFirstHit: !hasHitSurface,
+            intensity: remainingEnergy * intensity,
+            isAbsorberHit: hitType === "absorber",
+          });
+          hasHitSurface = true;
+
+          if (hitType === "absorber") {
+            const absorbedHere = remainingEnergy * intensity * alpha;
+            absorbedEnergy += absorbedHere;
+            const reflectedFraction = 1 - alpha;
+            if (reflectedFraction > 1e-12) {
+              rayDir = reflectDirection(rayDir, hitNormal);
+              pos = hitPt.clone().addScaledVector(rayDir, 1e-6);
+              remainingEnergy *= reflectedFraction;
+              bounces++;
+              continue;
+            } else {
+              fate = "absorbed";
+              break;
+            }
+          } else {
+            rayDir = reflectDirection(rayDir, hitNormal);
+            pos = hitPt.clone().addScaledVector(rayDir, 1e-6);
+            intensity *= reflectivity / 100;
+            bounces++;
+            if (intensity < 1e-12) {
+              fate = "depleted";
+              break;
+            }
+          }
+        }
+
+        if (fate === null) {
+          const inCone =
+            pos.z > 0 &&
+            pos.z < height &&
+            Math.sqrt(pos.x * pos.x + pos.y * pos.y) <
+              slopeRatio * pos.z + 1e-6;
+          fate = inCone ? "trapped" : "escaped";
+        }
+
+        return { segments, bounces, fate, absorbedEnergy, remainingEnergy };
+      }
+
+      // ─── Beam sampling ─────────────────────────────────────────────
+      function generateBeamSamples(count, radius, z) {
+        const samples = [];
+        if (!Number.isFinite(count) || count <= 0) return samples;
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+        for (let i = 0; i < count; i++) {
+          const r = Math.sqrt((i + 0.5) / count) * radius;
+          const theta = (i * goldenAngle) % (Math.PI * 2);
+          samples.push(
+            new THREE.Vector3(r * Math.cos(theta), r * Math.sin(theta), z),
+          );
+        }
+        return samples;
+      }
+
+      // ─── Geometric ray/axis crossing detector ─────────────────────
+      function findFirstAxisCrossing(
+        origin,
+        dir,
+        height,
+        radius,
+        slopeRatio,
+        maxBounces,
+        absorberRadius,
+        detectorLength,
+      ) {
+        let pos = origin.clone();
+        let rayDir = dir.clone();
+
+        for (let b = 0; b < maxBounces; b++) {
+          let tCone = Infinity,
+            coneHitPt = null;
+          const coneHit = intersectCone(pos, rayDir, slopeRatio, height);
+          if (coneHit) {
+            tCone = coneHit.t;
+            coneHitPt = coneHit.pt;
+          }
+
+          let tDet = Infinity,
+            detZ = null;
+          const result = intersectZCylinder(
+            pos,
+            rayDir,
+            absorberRadius,
+            detectorLength,
+          );
+          if (result) {
+            tDet = result.t;
+            detZ = result.point.z;
+          }
+
+          if (tDet < tCone) return Math.max(0, detZ);
+
+          if (tCone === Infinity) {
+            const terminal = checkApertureAndApex(pos, rayDir, height, radius);
+            if (terminal && terminal.fate === "trapped") return 0;
+            return null;
+          }
+
+          const nrm = new THREE.Vector3(
+            coneHitPt.x,
+            coneHitPt.y,
+            -slopeRatio * slopeRatio * coneHitPt.z,
+          ).normalize();
+          rayDir = reflectDirection(rayDir, nrm);
+          pos = coneHitPt.clone().addScaledVector(rayDir, 1e-6);
+        }
+
+        return null;
+      }
+
+      // ─── Exact rod hit test ────────────────────────────────────────
+      function isRayCapturedAtLength(
+        origin,
+        dir,
+        height,
+        radius,
+        slopeRatio,
+        maxBounces,
+        absorberRadius,
+        rodLength,
+      ) {
+        let pos = origin.clone();
+        let rayDir = dir.clone();
+
+        for (let b = 0; b < maxBounces; b++) {
+          let tCone = null,
+            coneHitPt = null;
+          const coneHit = intersectCone(pos, rayDir, slopeRatio, height);
+          if (coneHit) {
+            tCone = coneHit.t;
+            coneHitPt = coneHit.pt;
+          }
+
+          const absResult =
+            rodLength > 0
+              ? intersectZCylinder(pos, rayDir, absorberRadius, rodLength)
+              : null;
+
+          let hitType = null,
+            tHit = Infinity;
+          if (tCone !== null && tCone > 1e-8 && tCone < tHit) {
+            tHit = tCone;
+            hitType = "cone";
+          }
+          if (absResult && absResult.t > 1e-8 && absResult.t < tHit) {
+            tHit = absResult.t;
+            hitType = "absorber";
+          }
+
+          if (hitType === "absorber") return true;
+          if (hitType === null) return false;
+
+          const nrm = new THREE.Vector3(
+            coneHitPt.x,
+            coneHitPt.y,
+            -slopeRatio * slopeRatio * coneHitPt.z,
+          ).normalize();
+          rayDir = reflectDirection(rayDir, nrm);
+          pos = coneHitPt.clone().addScaledVector(rayDir, 1e-6);
+        }
+
+        return false;
+      }
+
+      // ─── Minimum rod length for one ray ────────────────────────────
+      function findMinimalRodLength(
+        origin,
+        dir,
+        height,
+        radius,
+        slopeRatio,
+        maxBounces,
+        absorberRadius,
+        sufficientLength,
+      ) {
+        let lo = 0;
+        let hi = sufficientLength;
+        for (let i = 0; i < 40; i++) {
+          const mid = (lo + hi) / 2;
+          if (
+            isRayCapturedAtLength(
+              origin,
+              dir,
+              height,
+              radius,
+              slopeRatio,
+              maxBounces,
+              absorberRadius,
+              mid,
+            )
+          ) {
+            hi = mid;
+          } else {
+            lo = mid;
+          }
+        }
+        return hi;
+      }
+
+      // ─── Ray-interception profile ──────────────────────────────────
+      function computeRayInterceptionProfile(p) {
+        const coneHeight = p.height;
+        const coneRadius = p.radius;
+        const slopeRatio = coneRadius / coneHeight;
+        const absorberRadius = Math.max(0.002, p.absorber.diameter / 2);
+        const maxBounces = p.maxBounces;
+        const sampleCount = Math.max(1, p.sunRays);
+        const beamSamples = generateBeamSamples(
+          sampleCount,
+          Math.max(0.05, coneRadius || 0.1),
+          coneHeight,
+        );
+        const dir = new THREE.Vector3(0, 0, -1);
+        const originOffset = 100;
+        const detectorLength = coneHeight * 50 + 50;
+
+        const crossings = [];
+        for (const sample of beamSamples) {
+          const origin = sample.clone().addScaledVector(dir, -originOffset);
+          const sufficientLength = findFirstAxisCrossing(
+            origin,
+            dir.clone(),
+            coneHeight,
+            coneRadius,
+            slopeRatio,
+            maxBounces,
+            absorberRadius,
+            detectorLength,
+          );
+          if (sufficientLength === null || !Number.isFinite(sufficientLength)) {
+            crossings.push(null);
+          } else if (sufficientLength <= 1e-9) {
+            crossings.push(0);
+          } else {
+            crossings.push(
+              findMinimalRodLength(
+                origin,
+                dir.clone(),
+                coneHeight,
+                coneRadius,
+                slopeRatio,
+                maxBounces,
+                absorberRadius,
+                sufficientLength,
+              ),
+            );
+          }
+        }
+
+        const finite = crossings
+          .filter((z) => z !== null && Number.isFinite(z))
+          .sort((a, b) => a - b);
+        const totalRays = sampleCount;
+        const capturedTotal = finite.length;
+        const optimalLength = capturedTotal > 0 ? finite[finite.length - 1] : 0;
+
+        return {
+          coneHeight,
+          optimalLength,
+          totalRays,
+          capturedTotal,
+          crossingLengths: finite,
+        };
+      }
+
+      // ─── Build ray lines for the 3D view ───────────────────────────
+      function buildRayLines(segments, baseOpacity = 0.4) {
+        if (segments.length === 0) return null;
+        const group = new THREE.Group();
+        for (const seg of segments) {
+          if (seg.intensity < 1e-12) continue;
+          const isAbsHit = seg.isAbsorberHit;
+          // Absorber-hit segments are drawn brighter to ensure visualization
+          // matches the computed physics exactly.
+          const opacity = isAbsHit
+            ? Math.min(1.0, Math.max(0.15, seg.intensity * 0.7))
+            : Math.min(0.9, Math.max(0.0, seg.intensity * baseOpacity));
+          if (opacity < 1e-6) continue;
+          const pts = [seg.start.clone(), seg.end.clone()];
+          const geo = new THREE.BufferGeometry().setFromPoints(pts);
+          const color = isAbsHit ? 0xff7766 : 0xb69985;
+          const mat = new THREE.LineBasicMaterial({
+            color,
+            transparent: true,
+            opacity,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            linewidth: 1,
+          });
+          group.add(new THREE.Line(geo, mat));
+
+          // Small bright dot at the absorber hit point for clarity
+          if (isAbsHit && seg.end) {
+            const dotGeo = new THREE.SphereGeometry(0.018, 6, 4);
+            const dotMat = new THREE.MeshBasicMaterial({
+              color: 0xff9988,
+              transparent: true,
+              opacity: Math.min(1.0, seg.intensity * 0.9),
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+            });
+            const dot = new THREE.Mesh(dotGeo, dotMat);
+            dot.position.copy(seg.end);
+            group.add(dot);
+          }
+        }
+        return group;
+      }
+
+      // ─── Read params ──────────────────────────────────────────────
+      function readPositive(input, fallback) {
+        const v = parseFloat(input.value);
+        return v > 0 ? v : fallback;
+      }
+      function readParams() {
+        return {
+          alpha:
+            parseFloat(inputs.alpha.value) > 0 &&
+            parseFloat(inputs.alpha.value) < 90
+              ? parseFloat(inputs.alpha.value)
+              : 25,
+          height: readPositive(inputs.height, 4),
+          radius: readPositive(inputs.radius, 1.86),
+          reflectivity: 100,
+          sunAngle: parseFloat(inputs.sunAngle.value) || 0,
+          sunRays: Math.max(1, Math.floor(readPositive(inputs.sunRays, 200))),
+          maxBounces: Math.max(
+            1,
+            Math.floor(readPositive(inputs.maxBounces, 12)),
+          ),
+          showIncoming: inputs.showIncoming.checked,
+          absorber: {
+            enabled: inputs.absorberEnabled.checked,
+            diameter: readPositive(inputs.rodDiameter, 0.3),
+            length: readPositive(inputs.rodLength, 0.8),
+            absorptivity: 100,
+            autoOptimize: inputs.autoOptimize.checked,
+          },
+        };
+      }
+
+      let lastConeParams = null;
+      let optimizationCache = null;
+      let isOptimizing = false;
+
+      // ─── Run simulation ───────────────────────────────────────────
+      function runSimulation() {
+        validateAlpha();
+
+        const p = readParams();
+        const isNormalIncidence = Math.abs(p.sunAngle) < 1e-9;
+
+        inputs.absorberEnabled.disabled = !isNormalIncidence;
+        inputs.autoOptimize.disabled = !isNormalIncidence;
+        absorberDisabledHint.style.display = isNormalIncidence
+          ? "none"
+          : "block";
+
+        if (!isNormalIncidence) {
+          if (inputs.absorberEnabled.checked || inputs.autoOptimize.checked) {
+            inputs.absorberEnabled.checked = false;
+            inputs.autoOptimize.checked = false;
+          }
+          p.absorber.enabled = false;
+          p.absorber.autoOptimize = false;
+          optimizationCache = null;
+          isOptimizing = false;
+        }
+
+        if (p.absorber.enabled) {
+          absorberBody.classList.remove("absorber-body-disabled");
+        } else {
+          absorberBody.classList.add("absorber-body-disabled");
+        }
+        updateAbsorberVisibility(p.absorber.enabled);
+
+        if (!p.absorber.enabled) {
+          clearGroup(absorberGroup);
+          autoOptStatusBadge.textContent = "";
+          autoOptStatusBadge.className = "auto-opt-status-badge";
+          inputs.rodLength.disabled = false;
+          optimalLengthOutput.style.display = "none";
+          runCore(p, { enabled: false });
+          lastProfile = null;
+          return;
+        }
+
+        const profile = computeRayInterceptionProfile(p);
+        lastProfile = profile;
+        let effectiveLength = p.absorber.length;
+
+        if (p.absorber.autoOptimize) {
+          const cacheKey = `${p.alpha}|${p.height}|${p.radius}|${p.absorber.diameter}|${p.sunRays}|${p.maxBounces}`;
+          inputs.rodLength.disabled = true;
+
+          if (!optimizationCache || optimizationCache.key !== cacheKey) {
+            if (!isOptimizing) {
+              isOptimizing = true;
+              autoOptStatusBadge.textContent = "Pending";
+              autoOptStatusBadge.className = "auto-opt-status-badge optimizing";
+              optimalLengthOutput.style.display = "none";
+              setTimeout(() => {
+                isOptimizing = false;
+                if (!inputs.autoOptimize.checked) {
+                  runSimulation();
+                  return;
+                }
+                optimizationCache = {
+                  key: cacheKey,
+                  length: profile.optimalLength,
+                };
+                inputs.rodLength.value = profile.optimalLength.toFixed(2);
+                autoOptStatusBadge.textContent = "✓";
+                autoOptStatusBadge.className = "auto-opt-status-badge active";
+                if (profile.capturedTotal > 0) {
+                  optimalLengthOutput.style.display = "block";
+                  const ratio =
+                    profile.optimalLength /
+                    Math.max(1e-6, parseFloat(inputs.height.value) || 4);
+                  optimalLengthText.innerHTML = `Optimal absorber extends from apex to <span>${ratio.toFixed(2)} H</span> &middot; captures ${profile.capturedTotal}/${profile.totalRays} reflected rays`;
+                } else {
+                  optimalLengthOutput.style.display = "block";
+                  optimalLengthText.innerHTML = `No capturable rays`;
+                }
+                runSimulation();
+              }, 120);
+            }
+            return;
+          }
+
+          effectiveLength = optimizationCache.length;
+          inputs.rodLength.value = effectiveLength.toFixed(2);
+          autoOptStatusBadge.textContent = "✓";
+          autoOptStatusBadge.className = "auto-opt-status-badge active";
+
+          if (profile.capturedTotal > 0) {
+            optimalLengthOutput.style.display = "block";
+            optimalLengthText.innerHTML = `Optimal absorber length = <span>${(effectiveLength / p.height).toFixed(2)} H</span>`;
+          } else {
+            optimalLengthOutput.style.display = "block";
+            optimalLengthText.innerHTML = `No capturable rays`;
+          }
+        } else {
+          optimizationCache = null;
+          isOptimizing = false;
+          inputs.rodLength.disabled = false;
+          autoOptStatusBadge.textContent = "";
+          autoOptStatusBadge.className = "auto-opt-status-badge";
+          optimalLengthOutput.style.display = "none";
+        }
+
+        buildAbsorber(
+          p.absorber.diameter,
+          effectiveLength,
+          p.absorber.absorptivity,
+        );
+
+        runCore(p, {
+          enabled: true,
+          radius: p.absorber.diameter / 2,
+          length: effectiveLength,
+          absorptivity: p.absorber.absorptivity,
+        });
+      }
+
+      let lastProfile = null;
+
+      // ─── Core cone build + main ray trace (drives the 3D view) ────
+      function runCore(p, absorberParams) {
+        const coneKey = `${p.alpha}|${p.height}|${p.radius}`;
+        if (coneKey !== lastConeParams) {
+          buildCone(p.alpha, p.height, p.radius);
+          lastConeParams = coneKey;
+        }
+
+        const slopeRatio = p.radius / p.height;
+        const sunAngleRad = (p.sunAngle * Math.PI) / 180;
+        const sunDir = new THREE.Vector3(
+          Math.sin(sunAngleRad),
+          0,
+          -Math.cos(sunAngleRad),
+        ).normalize();
+        const numRays = p.sunRays;
+        const beamRadius = p.radius;
+        const apertureZ = p.height;
+        const distUp = 100;
+
+        let allSegments = [];
+        const beamSamples = generateBeamSamples(numRays, beamRadius, apertureZ);
+
+        for (let i = 0; i < beamSamples.length; i++) {
+          const apt = beamSamples[i];
+          const origin = apt.clone().addScaledVector(sunDir, -distUp);
+          const result = traceRay(
+            origin,
+            sunDir.clone(),
+            p.height,
+            p.radius,
+            slopeRatio,
+            p.maxBounces,
+            p.reflectivity,
+            absorberParams,
+          );
+          if (result.segments.length === 0) {
+            allSegments.push({
+              start: origin.clone(),
+              end: origin.clone().addScaledVector(sunDir, -8),
+              beforeFirstHit: true,
+              intensity: 1.0,
+              isAbsorberHit: false,
+            });
+          } else {
+            allSegments.push(...result.segments);
+          }
+        }
+
+        clearGroup(rayGroup);
+        let segs = allSegments;
+        if (!p.showIncoming)
+          segs = allSegments.filter((s) => !s.beforeFirstHit);
+        if (segs.length > 0) {
+          const lg = buildRayLines(segs, 0.5);
+          if (lg) rayGroup.add(lg);
+        }
+
+        lastSimParams = p;
+        lastAbsorberParams = absorberParams;
+      }
+
+      let lastSimParams = null;
+      let lastAbsorberParams = null;
+
+      // ─── Validation helpers ────────────────────────────────────────
+      function validateField(input, isValid) {
+        input.classList.toggle("error", !isValid);
+        return isValid;
+      }
+      function validateAlpha() {
+        const v = parseFloat(inputs.alpha.value);
+        return validateField(inputs.alpha, !isNaN(v) && v > 0 && v < 90);
+      }
+      function validatePositive(input) {
+        const v = parseFloat(input.value);
+        return validateField(input, !isNaN(v) && v > 0);
+      }
+
+      let updating = false;
+      let debounceTimer = null;
+
+      function scheduleSim() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => runSimulation(), 150);
+      }
+
+      function syncHeight() {
+        if (updating) return;
+        updating = true;
+        const a = parseFloat(inputs.alpha.value);
+        const R = parseFloat(inputs.radius.value);
+        if (!isNaN(a) && !isNaN(R) && R > 0) {
+          const tanA = Math.tan((a * Math.PI) / 180);
+          if (tanA > 1e-12) {
+            const H = R / tanA;
+            if (isFinite(H) && H > 0) inputs.height.value = H.toFixed(2);
+          }
+        }
+        updating = false;
+        scheduleSim();
+      }
+      function syncFromHeight() {
+        if (updating) return;
+        updating = true;
+        const a = parseFloat(inputs.alpha.value);
+        const H = parseFloat(inputs.height.value);
+        if (!isNaN(a) && !isNaN(H) && H > 0) {
+          const tanA = Math.tan((a * Math.PI) / 180);
+          if (tanA > 1e-12) {
+            const R = H * tanA;
+            if (isFinite(R) && R > 0) inputs.radius.value = R.toFixed(2);
+          }
+        }
+        updating = false;
+        scheduleSim();
+      }
+
+      function triggerDownload(url, fn) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fn;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      // ─── Event wiring ─────────────────────────────────────────────
+      inputs.alpha.addEventListener("input", () => {
+        if (validateAlpha()) syncHeight();
+        else scheduleSim();
+      });
+      inputs.radius.addEventListener("input", () => {
+        validatePositive(inputs.radius);
+        syncHeight();
+        scheduleSim();
+      });
+      inputs.height.addEventListener("input", () => {
+        validatePositive(inputs.height);
+        syncFromHeight();
+        scheduleSim();
+      });
+      inputs.sunAngle.addEventListener("input", () => scheduleSim());
+      inputs.sunRays.addEventListener("input", () => {
+        validatePositive(inputs.sunRays);
+        scheduleSim();
+      });
+      inputs.maxBounces.addEventListener("input", () => {
+        validatePositive(inputs.maxBounces);
+        scheduleSim();
+      });
+      inputs.showIncoming.addEventListener("change", () => scheduleSim());
+
+      inputs.absorberEnabled.addEventListener("change", () => scheduleSim());
+      inputs.rodDiameter.addEventListener("input", () => {
+        validatePositive(inputs.rodDiameter);
+        scheduleSim();
+      });
+      inputs.rodLength.addEventListener("input", () => {
+        validatePositive(inputs.rodLength);
+        scheduleSim();
+      });
+      inputs.autoOptimize.addEventListener("change", () => {
+        if (inputs.autoOptimize.checked) {
+          optimizationCache = null;
+        }
+        scheduleSim();
+      });
+
+      // ─── Export buttons ───────────────────────────────────────────
+      el("btn-export-png").addEventListener("click", () => {
+        renderer.setClearColor(0x000000, 0);
+        renderer.render(scene, camera);
+        triggerDownload(
+          renderer.domElement.toDataURL("image/png"),
+          "cone_raytrace.png",
+        );
+      });
+      el("btn-export-jpg").addEventListener("click", () => {
+        renderer.setClearColor(0x111111, 1);
+        renderer.render(scene, camera);
+        triggerDownload(
+          renderer.domElement.toDataURL("image/jpeg", 0.92),
+          "cone_raytrace.jpg",
+        );
+      });
+      el("btn-export-json").addEventListener("click", () => {
+        if (!lastSimParams) return;
+        const p = lastSimParams;
+        const rayPaths = [];
+        for (const child of rayGroup.children) {
+          if (!child.isGroup) continue;
+          for (const line of child.children) {
+            if (!line.isLine) continue;
+            const pos = line.geometry.attributes.position;
+            if (pos.count < 2) continue;
+            rayPaths.push([
+              { x: pos.getX(0), y: pos.getY(0), z: pos.getZ(0) },
+              { x: pos.getX(1), y: pos.getY(1), z: pos.getZ(1) },
+            ]);
+          }
+        }
+        const payload = {
+          cone: {
+            halfAngleDeg: p.alpha,
+            height: p.height,
+            radius: p.radius,
+            reflectivity: p.reflectivity,
+          },
+          solarSource: {
+            incidenceAngleDeg: p.sunAngle,
+            beamRays: p.sunRays,
+            maxBounces: p.maxBounces,
+            showIncoming: p.showIncoming,
+          },
+          absorber: {
+            enabled: p.absorber.enabled,
+            diameter: p.absorber.diameter,
+            length:
+              lastAbsorberParams && lastAbsorberParams.enabled
+                ? lastAbsorberParams.length
+                : p.absorber.length,
+            absorptivity: p.absorber.absorptivity,
+            autoOptimize: p.absorber.autoOptimize || false,
+            fixedAtApex: true,
+          },
+          rayInterceptionProfile:
+            p.absorber.enabled && lastProfile
+              ? {
+                  coneHeight: lastProfile.coneHeight,
+                  optimalLength: Number(lastProfile.optimalLength.toFixed(4)),
+                  optimalLengthOverHeight: Number(
+                    (
+                      lastProfile.optimalLength / lastProfile.coneHeight
+                    ).toFixed(4),
+                  ),
+                  totalReflectedRays: lastProfile.totalRays,
+                  interceptedAtOptimal: lastProfile.capturedTotal,
+                  successCondition: "interceptedRays === totalReflectedRays",
+                  perRayCrossingLengths: lastProfile.crossingLengths.map((z) =>
+                    Number(z.toFixed(4)),
+                  ),
+                }
+              : null,
+          rayPaths,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, "cone_raytrace.json");
+        URL.revokeObjectURL(url);
+      });
+
+      // ─── Resize ────────────────────────────────────────────────────
+      function onResize() {
+        const w = viewport.clientWidth,
+          h = viewport.clientHeight;
+        if (w === 0 || h === 0) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+      window.addEventListener("resize", onResize);
+
+      // ─── Animate ───────────────────────────────────────────────────
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      // ─── Bootstrap ─────────────────────────────────────────────────
+      onResize();
+      syncHeight();
+      inputs.absorberEnabled.checked = false;
+      inputs.autoOptimize.checked = false;
+      absorberBody.classList.add("absorber-body-disabled");
+      runSimulation();
+      animate();
+    </script>
+  </body>
+</html>
